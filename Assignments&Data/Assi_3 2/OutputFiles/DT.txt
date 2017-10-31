@@ -1,0 +1,270 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+
+namespace AI_ML
+{
+    class CommonData
+    {
+        int testdocs, traindocs;
+        /// <summary>
+        /// Returns true if it is atheist, otherwise false
+        /// </summary>
+        public int[] TestLabel = new int[1200];
+        public int[] TrainLabel = new int[1200];
+        public string[] Words = new string[4000];
+
+        public List<int>[] TestDocIdtoWordIds = new List<int>[1200];
+        public List<int>[] TrainDocIdtoWordIds = new List<int>[1200];
+
+        public CommonData()
+        {
+            for (int i = 0; i < 1200; i++)
+            {
+                TestDocIdtoWordIds[i] = new List<int>();
+                TrainDocIdtoWordIds[i] = new List<int>();
+            }
+
+            StreamReader testlabelreader = new StreamReader("testLabel.txt");
+            int count = 1;
+            while (true)
+            {
+                string line = testlabelreader.ReadLine();
+                if (string.IsNullOrEmpty(line)) break;
+                if(line.Equals("1"))
+                    TestLabel[count]=1;
+                if(line.Equals("2"))
+                    TestLabel[count] = 2;
+                count++;
+            }
+            testlabelreader.Close();
+            testdocs=count-1;
+
+            StreamReader trainlabelreader = new StreamReader("trainLabel.txt");
+            count = 1;
+            while (true)
+            {
+                string line = trainlabelreader.ReadLine();
+                if (string.IsNullOrEmpty(line)) break;
+                if (line.Equals("1"))
+                    TrainLabel[count] = 1;
+                if (line.Equals("2"))
+                    TrainLabel[count] = 2;
+                count++;
+            }
+            trainlabelreader.Close();
+            traindocs=count-1;
+
+            StreamReader testmapreader = new StreamReader("testData.txt");
+            while (true)
+            {
+                if (testmapreader.EndOfStream) break;
+                string[] values = testmapreader.ReadLine().Split('\t');
+                TestDocIdtoWordIds[Convert.ToInt16(values[0])].Add(Convert.ToInt16(values[1]));
+            }
+            testmapreader.Close();
+
+            StreamReader trainmapreader = new StreamReader("trainData.txt");
+            while (true)
+            {
+                if (trainmapreader.EndOfStream) break;
+                string[] values = trainmapreader.ReadLine().Split('\t');
+                TrainDocIdtoWordIds[Convert.ToInt16(values[0])].Add(Convert.ToInt16(values[1]));
+            }
+            trainlabelreader.Close();
+
+            count=1;
+            StreamReader wordreader = new StreamReader("words.txt");
+            while (true)
+            {
+                if (wordreader.EndOfStream) break;
+                Words[count] = wordreader.ReadLine();
+                count++;
+            }
+            wordreader.Close();
+        }
+    }
+}
+class DecisionTreeNode
+    {
+        public int LeafValue = 0;
+        public int WordId=0;
+        public DecisionTreeNode True, False;
+        public List<int> docids = new List<int>();
+    }
+    
+    class DTMode
+    {
+        public bool considerleafnodes = false;
+        StreamWriter treefile;
+        private CommonData data;
+        DecisionTreeNode RootNode = new DecisionTreeNode();
+        PrioQueue queue = new PrioQueue();
+        int noofnodes = 0;
+
+        public DTMode(CommonData data)
+        {
+            this.data = data;
+        }
+
+        internal void Run()
+        {
+            treefile = new StreamWriter("Tree.txt", false);
+            List<int> docids = new List<int>();
+            for (int docid = 1; docid < data.TrainLabel.Length; docid++)
+            {
+                if (data.TrainLabel[docid] > 0) docids.Add(docid);
+            }
+            RootNode.docids = docids;
+            queue.Enqueue(RootNode,1);
+
+            Console.WriteLine("Nodes\tTraining\tTest Accuracy");
+            
+            TrainExpandTree();
+            
+            Console.ReadKey();
+            treefile.Close();
+        }
+
+        private void TrainExpandTree()
+        {
+            DecisionTreeNode node = queue.Dequeue() as DecisionTreeNode;
+
+            if (noofnodes > 100)
+            {
+                if (node.docids.Count != 0)
+                    node.LeafValue = GetMax(node.docids);
+                return;
+            }
+
+            bool isleaf = false;
+            double entropy = 0;
+            int currentwordid = 0;
+
+            for (int wordid = 0; wordid < data.Words.Length; wordid++)
+            {
+                if (string.IsNullOrEmpty(data.Words[wordid]))
+                    continue;
+
+                double truecount = 0, totalcount = 0;
+                foreach (int doc in node.docids)
+                {
+                    if (data.TrainDocIdtoWordIds[doc].Contains(wordid))
+                    {
+                        truecount++;
+                    }
+                    totalcount++;
+                }
+
+                double ifgain = (-truecount / totalcount) * Math.Log((truecount / totalcount), 2) -
+                                (totalcount - truecount) * Math.Log((totalcount - truecount) / totalcount, 2) / totalcount;
+                if (considerleafnodes)
+                    ifgain *= node.docids.Count;
+
+                if (entropy < ifgain)
+                {
+                    currentwordid = wordid;
+                    entropy = ifgain;
+                    if (truecount == 0 || totalcount == truecount) isleaf = true;
+                }
+            }
+
+            node.WordId = currentwordid;
+            treefile.WriteLine(data.Words[node.WordId] + "\t" + entropy);
+            data.Words[currentwordid] = null;
+            noofnodes++;
+            if (node.docids.Count != 0)
+                node.LeafValue = GetMax(node.docids);
+
+            Console.WriteLine(noofnodes + "\t" + TestUsingTrainedTree(RootNode, data.TrainLabel) + "\t" + TestUsingTrainedTree(RootNode, data.TestLabel));
+
+            if (isleaf)
+            {
+                return;
+            }
+
+            node.LeafValue = 0;
+
+            List<int> TrueDocs = new List<int>();
+            List<int> FalseDocs = new List<int>();
+
+            foreach (int doc in node.docids)
+            {
+                if (data.TrainDocIdtoWordIds[doc].Contains(currentwordid))
+                {
+                    TrueDocs.Add(doc);
+                }
+                else
+                {
+                    FalseDocs.Add(doc);
+                }
+            }
+
+
+            node.True = new DecisionTreeNode();
+            node.True.docids = TrueDocs;
+            queue.Enqueue(node.True,1);
+
+            node.False = new DecisionTreeNode();
+            node.False.docids = FalseDocs;
+            queue.Enqueue(node.False, 1);
+
+            TrainExpandTree();
+        }
+
+        private int GetMax(List<int> remainingdocs)
+        {
+            double count = 0, onecount = 0;
+            for (int i = 0; i < remainingdocs.Count; i++)
+            {
+                if (data.TrainLabel[remainingdocs[i]] == 1)
+                    onecount++;
+                count++;
+            }
+            if (onecount > count - onecount)
+                return 1;
+            return 2;
+        }
+
+
+        private double TestUsingTrainedTree(DecisionTreeNode node, int[] docs)
+        {
+            int count = 0, correct = 0;
+
+            for (int docid = 0; docid < docs.Length; docid++)
+            {
+                if (docs[docid] > 0)
+                {
+                    int guesslabel = GetLabelFromTest(node, docid);
+
+                    if (guesslabel == 0) continue;
+
+                    if (docs[docid] == guesslabel)
+                        correct++;
+
+                    count++;
+                }
+
+            }
+
+            double acc = correct * 100.0 / count;
+
+            return acc;
+        }
+
+        private int GetLabelFromTest(DecisionTreeNode Node, int docid)
+        {
+            if (Node == null) return 0;
+            if (Node.LeafValue > 0) return Node.LeafValue;
+            if (data.TestDocIdtoWordIds[docid].Contains(Node.WordId))
+                return GetLabelFromTest(Node.True, docid);
+            else
+                return GetLabelFromTest(Node.False, docid);
+        }
+
+    }
+}
+}

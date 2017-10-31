@@ -1,0 +1,31 @@
+﻿<Properties>
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug|x86" />
+  <MonoDevelop.Ide.Workbench>
+    <Pads>
+      <Pad Id="MonoDevelop.Debugger.WatchPad">
+        <State>
+          <Value>lab</Value>
+          <Value>label1</Value>
+          <Value>label2</Value>
+          <Value>prob1</Value>
+          <Value>prob2</Value>
+          <Value>d.words</Value>
+          <Value>log1</Value>
+          <Value>log2</Value>
+          <Value>success</Value>
+          <Value>failure</Value>
+        </State>
+      </Pad>
+    </Pads>
+  </MonoDevelop.Ide.Workbench>
+  <MonoDevelop.Ide.DebuggingService.Breakpoints>
+    <BreakpointStore>
+      <Breakpoint file="/home/rguttikonda/Desktop/Asst 3/Assignment3/NaiveBayesModel/Main.cs" line="145" />
+      <Breakpoint file="/home/rguttikonda/Desktop/Asst 3/Assignment3/NaiveBayesModel/Main.cs" line="13" />
+      <Breakpoint file="/home/rguttikonda/Desktop/Asst 3/Assignment3/NaiveBayesModel/Main.cs" line="103" />
+      <Breakpoint file="/home/rguttikonda/Desktop/Asst 3/Assignment3/NaiveBayesModel/Main.cs" line="136" />
+      <Breakpoint file="/home/rguttikonda/Desktop/Asst 3/Assignment3/NaiveBayesModel/Main.cs" line="184" />
+    </BreakpointStore>
+  </MonoDevelop.Ide.DebuggingService.Breakpoints>
+  <MonoDevelop.Ide.DebuggingService.PinnedWatches />
+</Properties>
